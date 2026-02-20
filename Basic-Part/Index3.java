@@ -1,7 +1,7 @@
 import java.io.*;
 import java.util.Scanner;
  
-class Index2 {
+class Index3 {
  
     WikiItem start;
  
@@ -16,7 +16,7 @@ class Index2 {
     }
  
     // Iterates through the file, prints word by word, and creates WikiItem object: start = Word(firstWord, Word(secondWord, Word(...)))
-    public Index2(String filename) {
+    public Index3(String filename) {
         String word;
         WikiItem current, tmp;
         try {
@@ -66,7 +66,7 @@ class Index2 {
     // Otherwise, it will search in the file for the string given in terminal and print whether it exists or not.
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
-        Index2 i = new Index2(args[0]);
+        Index3 i = new Index3(args[0]);
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
@@ -79,13 +79,13 @@ class Index2 {
         console.close();
     }
 
-    // First compile using $ javac Index2.java
+    // First compile using $ javac Basic-Part/Index3.java
 
-    // Run using $ java Index2 DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Index3.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
-    // For instance, java -Xmx128m Index2 WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
+    // For instance, java -Xmx128m Index3.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
 }
 
 

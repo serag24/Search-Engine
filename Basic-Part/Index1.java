@@ -1,7 +1,7 @@
 import java.io.*;
 import java.util.Scanner;
  
-class Index3 {
+class Index1 {
  
     WikiItem start;
  
@@ -16,7 +16,7 @@ class Index3 {
     }
  
     // Iterates through the file, prints word by word, and creates WikiItem object: start = Word(firstWord, Word(secondWord, Word(...)))
-    public Index3(String filename) {
+    public Index1(String filename) {
         String word;
         WikiItem current, tmp;
         try {
@@ -41,21 +41,10 @@ class Index3 {
 // Uppercase and lowercase are treated as different strings. Ex: "In" and "in" or "I" and "i".
     public boolean search(String searchstr) {
         WikiItem current = start;
-        String title = start.str;
-
         while (current != null) {
             if (current.str.equals(searchstr)) {
-                System.out.println(title);
-
-                while(!current.str.equals("---END.OF.DOCUMENT---")) {
-                    current = current.next;
-                }
+                return true;
             }
-
-            if(current.str.equals("---END.OF.DOCUMENT---") && current.next != null) {
-                title = current.next.str;
-            }
-            
             current = current.next;
         }
         return false;
@@ -66,7 +55,7 @@ class Index3 {
     // Otherwise, it will search in the file for the string given in terminal and print whether it exists or not.
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
-        Index3 i = new Index3(args[0]);
+        Index1 i = new Index1(args[0]);
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
@@ -74,29 +63,22 @@ class Index3 {
             if (searchstr.equals("exit")) {
                 break;
             }
-            i.search(searchstr);
+            if (i.search(searchstr)) {
+                System.out.println(searchstr + " exists");
+            } else {
+                System.out.println(searchstr + " does not exist");
+            }
         }
         console.close();
     }
 
-    // First compile using $ javac Index3.java
+    // First compile using $ javac Basic-Part/Index1.java
 
-    // Run using $ java Index3 DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Index1.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
-    // For instance, java -Xmx128m Index3 WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
+    // For instance, java -Xmx128m Index1.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
 }
 
-
-// How it works:
-// Index2 i = new Index2(args[0]); creates the data structure WikiItem(word, WikiItem(word, WikiItem(word, ...)))
-
-// search(searchstr) searches for the searchstr in the data structure and prints the title of the document if the searchstr is found.
-// if it's not found, nothing gets printed, and the engine waits for next search string.
-
-// search(searchstr) saves the title of the first doc, then searches for searchstr in the rest of the doc.
-// At every iteration of outer while loop, it checks if "---END.OF.DOCUMENT---" is found. 
-// If it is, it saves the title of the next doc and continues searching for searchstr.
-
-// If searchstr is found in one doc, the title gets printed, then we search for "---END.OF.DOCUMENT---" to skip to the next doc.
+// If I ever get errors when staging, do $ rm .git/index.lock
