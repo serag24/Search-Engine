@@ -74,7 +74,7 @@ class Index1 {
 
     // First compile using $ javac Basic-Part/Index1.java
 
-    // Run using $ java Index1.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Basic-Part/Index1.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 

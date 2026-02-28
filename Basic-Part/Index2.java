@@ -4,6 +4,7 @@ import java.util.Scanner;
 class Index2 {
  
     WikiItem start;
+    private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---";
  
     private class WikiItem {
         String str;
@@ -47,12 +48,12 @@ class Index2 {
             if (current.str.equals(searchstr)) {
                 System.out.println(title);
 
-                while(!current.str.equals("---END.OF.DOCUMENT---")) {
+                while(!current.str.equals(END_OF_DOCUMENT)) {
                     current = current.next;
                 }
             }
 
-            if(current.str.equals("---END.OF.DOCUMENT---") && current.next != null) {
+            if(current.str.equals(END_OF_DOCUMENT) && current.next != null) {
                 title = current.next.str;
             }
             
@@ -81,7 +82,7 @@ class Index2 {
 
     // First compile using $ javac Basic-Part/Index2.java
 
-    // Run using $ java Index2.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Basic-Part/Index2.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
