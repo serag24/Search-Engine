@@ -2,7 +2,7 @@ import java.io.*;
 import java.util.Scanner;
 import java.util.ArrayList;
  
-class Index3 {
+class Index4 {
  
     WikiItem start;
     private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---"; // constant string to check for end of document
@@ -31,7 +31,7 @@ class Index3 {
 
         // Iterates through the file (outer while loop) taking one word at a time and creating a WikiItem object for it.
         // Then it iterates through all words in the file (inner while loop), saving the titles of all documents that contain the current word.
-        public Index3(String filename) {
+        public Index4(String filename) {
             String word, word2, title;
             WikiItem current;
             Document startDoc;
@@ -121,7 +121,7 @@ class Index3 {
     // Otherwise, it will search in the file for the string given in terminal and print whether it exists or not.
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
-        Index3 i = new Index3(args[0]);
+        Index4 i = new Index4(args[0]);
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
@@ -134,22 +134,11 @@ class Index3 {
         console.close();
     }
 
-    // First compile using $ javac Basic-Part/Index3.java
+    // First compile using $ javac Basic-Part/Index4.java
 
-    // Run using $ java Index3.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Index4.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
-    // For instance, java -Xmx128m Index3.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
+    // For instance, java -Xmx128m Index4.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
 }
-
-
-
-/// question to teacher:
-/// Is the WikiItem linked list here supposed to have repeating words? If yes, it feels like
-/// there is no asymptotic improvement in running time compared to Index2.
-/// Searching takes same time as Index2. Maybe there are cases where a word that appears in multiple documents is found early on, so it can be faster
-/// in that sense. But asimptotically it is the same time as Index2 - O(n).
-// Preprocessing takes longer - O(n^2) compared to O(n) for Index2.
-
-/// Also ask if it is ok to use ArrayList in the createDocument method for this basic part.
