@@ -146,10 +146,13 @@ class Index3 {
 
 
 /// question to teacher:
+/// I am currently skipping the title of the first document. 
+// I am saying that it only appears in first document. Is this a problem?
+/// 
 /// Is the WikiItem linked list here supposed to have repeating words? If yes, it feels like
 /// there is no asymptotic improvement in running time compared to Index2.
 /// Searching takes same time as Index2. Maybe there are cases where a word that appears in multiple documents is found early on, so it can be faster
 /// in that sense. But asimptotically it is the same time as Index2 - O(n).
 // Preprocessing takes longer - O(n^2) compared to O(n) for Index2.
-
+///
 /// Also ask if it is ok to use ArrayList in the createDocument method for this basic part.
