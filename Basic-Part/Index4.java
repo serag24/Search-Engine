@@ -27,8 +27,9 @@ class Index4 {
         }
     }
 
+    // Set up hash table with linked lists at each index
     private static class HashTable {
-        private static final int TABLE_SIZE = 13;
+        private static final int TABLE_SIZE = 17;
         private WikiItem[] table; // the hash table itself - an array of linked lists
 
         public HashTable() {
@@ -40,10 +41,12 @@ class Index4 {
             }
         }
 
+        // hash function
         private int hash(String word) {
-            return word.length() % 13;
+            return word.length() % 17;
         }
     
+        // insert object at beginning of linked list at calculated index in hash table
         public void insert (String word, String filename) {
             Document doc = Index4.getDocumentLinkedList(word, filename);
     
@@ -58,6 +61,7 @@ class Index4 {
             }
         }
 
+        // delete object from linked list
         public void delete (String word) {
             int index = hash(word);
             WikiItem current = table[index];
@@ -78,6 +82,7 @@ class Index4 {
             System.out.println("Word not found");
         }
 
+        // search for object in linked list and return true if found, false otherwise
         public boolean search(String word) {
             int index = hash(word);
             WikiItem current = table[index];
@@ -91,6 +96,7 @@ class Index4 {
             return false;
         }
 
+        // search for object in linked list and return document titles if found, null otherwise
         public Document getTitles(String word) {
             int index = hash(word);
             WikiItem current = table[index];
@@ -159,7 +165,7 @@ class Index4 {
 
      // Prints the titles of all documents in the linked list.
     public static void printDocumentTitles(Document doc) {
-        if(doc == null) {
+        if(doc == null) { // case where word is not in the hash table
             System.out.println("Word not found");
             return;
         }
@@ -170,17 +176,17 @@ class Index4 {
         }
     }
 
+    // search for object in hash table and print its document titles
     public static void search(String searchstr, HashTable hashTable) {
         printDocumentTitles(hashTable.getTitles(searchstr));
     }
 
+    // preprocess the file and insert objects into hash table
     public Index4(String filename, HashTable hashTable) {
-        String word;
         try {
             Scanner input = new Scanner(new File(filename), "UTF-8");
-            word = input.next();
             while(input.hasNext()) {
-                word = input.next();
+                String word = input.next();
                 hashTable.insert(word, filename);
             }
             input.close();
@@ -210,9 +216,16 @@ class Index4 {
 
     // First compile using $ javac Basic-Part/Index4.java
 
-    // Run using $ java Index4.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Basic-Part/Index4.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
     // For instance, java -Xmx128m Index4.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
 }
+
+// question to teacher:
+// If the hash function is ok.
+// Here, I again give the first word only one title. Is this ok?
+// Do I need to have the search and delete operations available for the hash table?
+// If yes, do I need to adjust the user input, to take in the name of the operation - insert, search, delete?
+
