@@ -27,7 +27,7 @@ class Index2 {
             current = start;
             while (input.hasNext()) {   // Read all words in input
                 word = input.next();
-                System.out.println(word);
+                //System.out.println(word);
                 tmp = new WikiItem(word, null);
                 current.next = tmp;
                 current = tmp;

@@ -32,66 +32,68 @@ class Index3 {
         // Iterates through the file (outer while loop) taking one word at a time and creating a WikiItem object for it.
         // Then it iterates through all words in the file (inner while loop), saving the titles of all documents that contain the current word.
         public Index3(String filename) {
-            String word, word2, title;
+            String word, title;
             WikiItem current;
-            Document startDoc;
             try {
-                Scanner input = new Scanner(new File(filename), "UTF-8"); // First scanner
+                Scanner input = new Scanner(new File(filename), "UTF-8"); // Scanner
+                title = input.next();
                 word = input.next();
-                title = word;
-                startDoc = new Document(title, null);
     
-                start = new WikiItem(word, startDoc, null); // first WikiItem
+                start = new WikiItem(word, new Document(title, null), null); // first WikiItem
                 current = start;
                 while (input.hasNext()) {   // Read all words in input
-                    word = input.next();   // second word in file
-                    Scanner documentSeeker = new Scanner(new File(filename), "UTF-8"); // Second scanner
-                    ArrayList<String> titles = new ArrayList<>(); // empty list for doc titles
-    
-                    while(documentSeeker.hasNext()) {
-                        word2 = documentSeeker.next();
-                        if(word2.equals(word)) { // if instance of current word is found
-                            titles.add(title);   // add title to list
-                            while(!word2.equals(END_OF_DOCUMENT)) { // skip to next document
-                                word2 = documentSeeker.next();
+
+                    if(word.equals(END_OF_DOCUMENT)) {
+                        // Title is the next non-empty line (whole line; may contain '.' anywhere)
+                        String nextTitle = null;
+                        while (input.hasNextLine()) {
+                            String line = input.nextLine();
+                            if (!line.trim().isEmpty()) {
+                                nextTitle = line.trim();
+                                break;
                             }
                         }
-                        if (word2.equals(END_OF_DOCUMENT) && documentSeeker.hasNext()) { 
-                            title = documentSeeker.next(); // update title for next document
+                        if (nextTitle == null) {
+                            break;
                         }
+                        title = nextTitle;
+                        //System.out.println(title); // TODO: remove this
                     }
-                    documentSeeker.close();
+                    
+                    word = input.next();
+                    
+                    while (true) {
+                        if(current.str.equals(word)) {
+                            Document doc = current.doc;
+                            while(true) {
+                                if (doc.title.equals(title)) break;
+                                if(doc.next == null) {
+                                    doc.next = new Document(title, null);
+                                    break;
+                                }
+                                doc = doc.next;
+                            }
+                            break;
+                        }
+                        
+                        if(current.next == null) break;
+                        current = current.next;
+                    }
 
-                    Document doc = createDocument(titles); // create linked list of document titles
-    
-                    current.next = new WikiItem(word, doc, null); // create new WikiItem with current word and its document titles
-                    current = current.next;
-                    title = start.str; // reset to first title
+                    if (current.next == null && !current.str.equals(word)) {
+                        current.next = new WikiItem(word, new Document(title, null), null);
+                    }
+
+                    current = start;
                 }
                 input.close();
             } catch (FileNotFoundException e) {
                 System.out.println("Error reading file " + filename);
             }
         }
-
-        // Creates a linked list of document titles from an ArrayList of titles.
-        public Document createDocument(ArrayList<String> titles) {
-            if (titles.isEmpty()) {
-                return new Document(null, null);
-            }
-            else {
-                Document startDoc = new Document(titles.get(0), null);
-                Document doc = startDoc;
-                for(int i = 1; i < titles.size(); i++) {
-                    doc.next = new Document(titles.get(i), null);
-                    doc = doc.next;
-                }
-                return startDoc;
-            }
-        }
  
-// Linearly searches through the WikiItem object to see if searchstr is one of the strings in the file.
-// If it is, it prints the titles of all documents that contain the searchstr.
+    // Linearly searches through the WikiItem object to see if searchstr is one of the strings in the file.
+    // If it is, it prints the titles of all documents that contain the searchstr.
     public boolean search(String searchstr) {
         WikiItem current = start;
 
@@ -136,7 +138,7 @@ class Index3 {
 
     // First compile using $ javac Basic-Part/Index3.java
 
-    // Run using $ java Index3.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Basic-Part/Index3.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
