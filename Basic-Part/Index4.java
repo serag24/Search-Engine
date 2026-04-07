@@ -1,108 +1,157 @@
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.Scanner;
-import java.util.ArrayList;
+import java.util.concurrent.ThreadLocalRandom;
  
 class Index4 {
-    private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---"; // constant string to check for end of document
- 
-    private static class WikiItem {    // linked list 
-        String str;             // word
-        Document doc;           // linked list of document titles
-        WikiItem next;          // next element in hashtable at certain index i
+    private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---";
 
-        WikiItem(String s, Document d) { // constructor
+    private static class WikiItem {
+        String str;
+        Document doc;
+        WikiItem next;
+
+        WikiItem(String s, Document d) {
             str = s;
             doc = d;
             next = null;
         }
     }
 
-    private static class Document { // linked list of document titles
-        String title;        // title
-        Document next;       // next title
+    private static class Document {
+        String title;
+        Document next;
 
-        Document(String t, Document n) { // constructor
+        Document(String t, Document n) {
             title = t;
             next = n;
         }
     }
 
-    // Set up hash table with linked lists at each index
+    
+    //When the number of distinct words (WikiItems) reaches table length, rehash to 2*m+1 and new (a,b)
     private static class HashTable {
-        private static final int TABLE_SIZE = 17;
-        private WikiItem[] table; // the hash table itself - an array of linked lists
+        private static final long P = 1_000_000_007L;    //a large prime number
+        private static final int INITIAL_CAPACITY = 17;
 
+        private WikiItem[] table;
+        
+        private int numKeys;   // keeps track of how many distinct words are in the hash table
+        private long hashA;
+        private long hashB;
+
+        // Instance constructor for creating the new hash table and its hash parameters
         public HashTable() {
-            table = new WikiItem[TABLE_SIZE];
+            table = new WikiItem[INITIAL_CAPACITY];
+            chooseHashParameters();
+        }
 
-            // initialize linked lists at each index to null
-            for (int i=0; i<TABLE_SIZE; i++) {
+        private void chooseHashParameters() {
+            ThreadLocalRandom r = ThreadLocalRandom.current();
+            // Params for (a * key + b) mod P
+            hashA = r.nextLong(1, P); // random long number from 1 up to P-1 inclusive
+            hashB = r.nextLong(0, P); // random long number from 0 up to P-1 inclusive
+        }
+
+        // Computing the key h fed into (a·h + b) mod P later. (pollinomial rolling hash)
+        private long stringKey(String s) {
+            long h = 0;
+            for (int i = 0; i < s.length(); i++) {
+                h = (h * 257L + s.charAt(i)) % P;
+            }
+            return h;
+        }
+
+        // s.charAt(i) is the i-th character of the string s, converted to a long value (ex. 'A' → 65, 'a' → 97).
+        // For each character c (in order, left to right), update:
+        // h = (h * 257 + c) % P
+        // h is treated like a number in base 257, where 
+
+// ------------------------------------------------------------------------------------------------
+
+        // Calculating the index for the word in the hash table.
+        private int indexFor(String word) {
+            long k = stringKey(word);
+            long mixed = (hashA * k + hashB) % P;
+            // If hashA * k exceeds Long.MAX_VALUE, the result of the sum can become negative
+            if (mixed < 0) {
+                mixed += P;
+            }
+            return (int) (mixed % table.length);
+        }
+
+        // Rehashing the hash table when the number of distinct words reaches table length.
+        // Takes each WikiItem in old table and inserts it into the new table.
+        private void rehash() {
+            WikiItem[] old = table;
+            int newLen = old.length * 2 + 1;
+            table = new WikiItem[newLen];
+            for (int i = 0; i < newLen; i++) {
                 table[i] = null;
             }
-        }
-
-        // hash function
-        private int hash(String word) {
-            return word.length() % 17;
-        }
-    
-        // insert object at beginning of linked list at calculated index in hash table
-        public void insert (String word, String filename) {
-            Document doc = Index4.getDocumentLinkedList(word, filename);
-    
-            int index = hash(word);
-            WikiItem item = new WikiItem(word, doc);
-    
-            if (table[index] == null) {
-                table[index] = item;
-            } else {
-                item.next = table[index];
-                table[index] = item;
+            chooseHashParameters();
+            for (WikiItem head : old) {
+                WikiItem cur = head;
+                while (cur != null) {
+                    WikiItem next = cur.next;
+                    cur.next = null;
+                    insertNodeAtBucket(cur);
+                    cur = next;
+                }
             }
         }
 
-        // delete object from linked list
-        public void delete (String word) {
-            int index = hash(word);
-            WikiItem current = table[index];
+        // Insert an existing node (used only during rehash). Does not change numKeys.
+        private void insertNodeAtBucket(WikiItem node) {
+            int idx = indexFor(node.str);
+            node.next = table[idx];
+            table[idx] = node;
+        }
 
-            if(current.str.equals(word)) {
-                table[index] = current.next;
-                return;
-            }
-
-            while(current != null) {
-                if(current.next.str.equals(word)) {
-                    current.next = current.next.next;
+        private static void addTitleIfMissing(Document head, String title) {
+            Document doc = head;
+            while (true) {
+                if (doc.title.equals(title)) {
                     return;
                 }
-                current = current.next;
-            }
-
-            System.out.println("Word not found");
-        }
-
-        // search for object in linked list and return true if found, false otherwise
-        public boolean search(String word) {
-            int index = hash(word);
-            WikiItem current = table[index];
-
-            while(current != null) {
-                if(current.str.equals(word)) {
-                    return true;
+                if (doc.next == null) {
+                    doc.next = new Document(title, null);
+                    return;
                 }
-                current = current.next;
+                doc = doc.next;
             }
-            return false;
         }
 
-        // search for object in linked list and return document titles if found, null otherwise
-        public Document getTitles(String word) {
-            int index = hash(word);
-            WikiItem current = table[index];
+        
+        // If word exists in table, append title to its document list if title is new; else new bucket head.
+        // Rehash when numKeys == table.length before adding a new distinct word.
+         
+        public void addWord(String word, String title) {
+            int idx = indexFor(word);
+            WikiItem cur = table[idx];
+            while (cur != null) {
+                if (cur.str.equals(word)) {
+                    addTitleIfMissing(cur.doc, title);
+                    return;
+                }
+                cur = cur.next;
+            }
+            if (numKeys == table.length) {
+                rehash();
+                idx = indexFor(word);
+            }
+            WikiItem item = new WikiItem(word, new Document(title, null));
+            item.next = table[idx];
+            table[idx] = item;
+            numKeys++;
+        }
 
-            while(current != null) {
-                if(current.str.equals(word)) {
+        public Document getTitles(String word) {
+            int idx = indexFor(word);
+            WikiItem current = table[idx];
+
+            while (current != null) {
+                if (current.str.equals(word)) {
                     return current.doc;
                 }
                 current = current.next;
@@ -111,61 +160,8 @@ class Index4 {
         }
     }
 
-    public static Document getDocumentLinkedList(String word, String filename) {
-        String word2, title;
-        Document doc = new Document(null, null);
-        try {
-            Scanner input = new Scanner(new File(filename), "UTF-8"); // First scanner
-            word2 = input.next();
-            title = word2;
-            ArrayList<String> titles = new ArrayList<>(); // empty list for doc titles
-
-            if(word2.equals(word)) { 
-                input.close();
-                return new Document(title, null);
-            }
-
-            while (input.hasNext()) {   // Read all words in input
-                word2 = input.next();   // second word in file
-
-                if(word2.equals(word)) { // if instance of current word is found
-                    titles.add(title);   // add title to list
-                    while(!word2.equals(END_OF_DOCUMENT)) { // skip to next document
-                        word2 = input.next();
-                    }
-                }
-                if (word2.equals(END_OF_DOCUMENT) && input.hasNext()) { 
-                    title = input.next(); // update title for next document
-                }
-
-                doc = Index4.createDocumentLinkedList(titles); // create linked list of document titles
-            }
-            input.close();
-        } catch (FileNotFoundException e) {
-            System.out.println("Error reading file " + filename);
-        }
-        return doc;
-    }
-
-    // Creates a linked list of document titles from an ArrayList of titles.
-    public static Document createDocumentLinkedList(ArrayList<String> titles) {
-        if (titles.isEmpty()) {
-            return new Document(null, null);
-        }
-        else {
-            Document startDoc = new Document(titles.get(0), null);
-            Document doc = startDoc;
-            for(int i = 1; i < titles.size(); i++) {
-                doc.next = new Document(titles.get(i), null);
-                doc = doc.next;
-            }
-            return startDoc;
-        }
-    }
-
-     // Prints the titles of all documents in the linked list.
     public static void printDocumentTitles(Document doc) {
-        if(doc == null) { // case where word is not in the hash table
+        if (doc == null) {
             System.out.println("Word not found");
             return;
         }
@@ -176,18 +172,45 @@ class Index4 {
         }
     }
 
-    // search for object in hash table and print its document titles
     public static void search(String searchstr, HashTable hashTable) {
         printDocumentTitles(hashTable.getTitles(searchstr));
     }
 
-    // preprocess the file and insert objects into hash table
     public Index4(String filename, HashTable hashTable) {
         try {
-            Scanner input = new Scanner(new File(filename), "UTF-8");
-            while(input.hasNext()) {
-                String word = input.next();
-                hashTable.insert(word, filename);
+            Scanner input = new Scanner(new File(filename), StandardCharsets.UTF_8.name());
+            if (!input.hasNext()) {
+                input.close();
+                return;
+            }
+            String title = input.next();
+            if (!input.hasNext()) {
+                input.close();
+                return;
+            }
+            String word = input.next();
+            hashTable.addWord(word, title);
+
+            while (input.hasNext()) {
+                if (word.equals(END_OF_DOCUMENT)) {
+                    String nextTitle = null;
+                    while (input.hasNextLine()) {
+                        String line = input.nextLine();
+                        if (!line.trim().isEmpty()) {
+                            nextTitle = line.trim();  // trim() removes leading and trailing whitespace
+                            break;
+                        }
+                    }
+                    if (nextTitle == null) {
+                        break;
+                    }
+                    title = nextTitle;
+                }
+                if (!input.hasNext()) {
+                    break;
+                }
+                word = input.next();
+                hashTable.addWord(word, title);
             }
             input.close();
         } catch (FileNotFoundException e) {
@@ -195,9 +218,6 @@ class Index4 {
         }
     }
 
-    // Main method that takes in a file name as param (run in terminal).
-    // Type "exit" to stop the program.
-    // Otherwise, it will search in the file for the string given in terminal and print whether it exists or not.
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
         HashTable hashTable = new HashTable();
@@ -222,10 +242,3 @@ class Index4 {
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
     // For instance, java -Xmx128m Index4.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
 }
-
-// question to teacher:
-// If the hash function is ok.
-// Here, I again give the first word only one title. Is this ok?
-// Do I need to have the search and delete operations available for the hash table?
-// If yes, do I need to adjust the user input, to take in the name of the operation - insert, search, delete?
-
