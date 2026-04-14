@@ -1,6 +1,5 @@
 import java.io.*;
 import java.util.Scanner;
-import java.util.ArrayList;
  
 class Index3 {
  
@@ -64,14 +63,9 @@ class Index3 {
                     
                     while (true) {
                         if(current.str.equals(word)) {
-                            Document doc = current.doc;
-                            while(true) {
-                                if (doc.title.equals(title)) break;
-                                if(doc.next == null) {
-                                    doc.next = new Document(title, null);
-                                    break;
-                                }
-                                doc = doc.next;
+                            Document head = current.doc;
+                            if (head == null || !head.title.equals(title)) {
+                                current.doc = new Document(title, head);
                             }
                             break;
                         }
@@ -123,15 +117,23 @@ class Index3 {
     // Otherwise, it will search in the file for the string given in terminal and print whether it exists or not.
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
+        long preprocessStartNanos = System.nanoTime();
         Index3 i = new Index3(args[0]);
+        long preprocessEndNanos = System.nanoTime();
+        long preprocessMs = (preprocessEndNanos - preprocessStartNanos) / 1_000_000L;
+        System.out.println("Preprocessing time: " + preprocessMs + " ms");
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
             String searchstr = console.nextLine();
+            long searchStartNanos = System.nanoTime();
             if (searchstr.equals("exit")) {
                 break;
             }
             i.search(searchstr);
+            long searchEndNanos = System.nanoTime();
+            long searchMs = (searchEndNanos - searchStartNanos) / 1_000_000L;
+            System.out.println("Search time: " + searchMs + " ms");
         }
         console.close();
     }

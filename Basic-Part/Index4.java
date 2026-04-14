@@ -31,14 +31,13 @@ class Index4 {
     
     //When the number of distinct words (WikiItems) reaches table length, rehash to 2*m+1 and new (a,b)
     private static class HashTable {
-        private static final long P = 1_000_000_007L;    //a large prime number
         private static final int INITIAL_CAPACITY = 17;
 
         private WikiItem[] table;
         
         private int numKeys;   // keeps track of how many distinct words are in the hash table
-        private long hashA;
-        private long hashB;
+        private int hashA;
+        private int hashB;
 
         // Instance constructor for creating the new hash table and its hash parameters
         public HashTable() {
@@ -47,37 +46,23 @@ class Index4 {
         }
 
         private void chooseHashParameters() {
+            int m = table.length;
             ThreadLocalRandom r = ThreadLocalRandom.current();
-            // Params for (a * key + b) mod P
-            hashA = r.nextLong(1, P); // random long number from 1 up to P-1 inclusive
-            hashB = r.nextLong(0, P); // random long number from 0 up to P-1 inclusive
+            // Universal-style step: index = floorMod(a * k + b, m) with a in [1, m-1], b in [0, m-1]
+            hashA = 1 + r.nextInt(m - 1);
+            hashB = r.nextInt(m);
         }
 
-        // Computing the key h fed into (a·h + b) mod P later. (pollinomial rolling hash)
-        private long stringKey(String s) {
-            long h = 0;
-            for (int i = 0; i < s.length(); i++) {
-                h = (h * 257L + s.charAt(i)) % P;
-            }
-            return h;
-        }
+         // s[i] is the i-th character of the string s, converted to an int value (ex. 'A' → 65, 'a' → 97).
+        // How hashCode() works:
+        // s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
 
-        // s.charAt(i) is the i-th character of the string s, converted to a long value (ex. 'A' → 65, 'a' → 97).
-        // For each character c (in order, left to right), update:
-        // h = (h * 257 + c) % P
-        // h is treated like a number in base 257, where 
-
-// ------------------------------------------------------------------------------------------------
-
-        // Calculating the index for the word in the hash table.
+        // Key from String.hashCode() (JDK: 31-based polynomial, cached on the String); then (a,b) mod table size.
         private int indexFor(String word) {
-            long k = stringKey(word);
-            long mixed = (hashA * k + hashB) % P;
-            // If hashA * k exceeds Long.MAX_VALUE, the result of the sum can become negative
-            if (mixed < 0) {
-                mixed += P;
-            }
-            return (int) (mixed % table.length);
+            int m = table.length;
+            int kMod = Math.floorMod(word.hashCode(), m);
+            // Widen to long so hashA * kMod does not overflow int for large m.
+            return (int) Math.floorMod((long) hashA * kMod + hashB, m);
         }
 
         // Rehashing the hash table when the number of distinct words reaches table length.
@@ -108,22 +93,16 @@ class Index4 {
             table[idx] = node;
         }
 
-        private static void addTitleIfMissing(Document head, String title) {
-            Document doc = head;
-            while (true) {
-                if (doc.title.equals(title)) {
-                    return;
-                }
-                if (doc.next == null) {
-                    doc.next = new Document(title, null);
-                    return;
-                }
-                doc = doc.next;
+        private static void addTitleIfMissing(WikiItem item, String title) {
+            Document head = item.doc;
+            if (head != null && head.title.equals(title)) {
+                return;
             }
+            item.doc = new Document(title, head);
         }
 
-        
-        // If word exists in table, append title to its document list if title is new; else new bucket head.
+
+        // If word exists in table: if list head already has this title, skip; else prepend title.
         // Rehash when numKeys == table.length before adding a new distinct word.
          
         public void addWord(String word, String title) {
@@ -131,7 +110,7 @@ class Index4 {
             WikiItem cur = table[idx];
             while (cur != null) {
                 if (cur.str.equals(word)) {
-                    addTitleIfMissing(cur.doc, title);
+                    addTitleIfMissing(cur, title);
                     return;
                 }
                 cur = cur.next;
@@ -157,6 +136,27 @@ class Index4 {
                 current = current.next;
             }
             return null;
+        }
+
+        public void printIndexStatistics() {
+            int m = table.length;
+            System.out.println("Table size m: " + m);
+            int uniqueWords = 0;
+            int titlesOverall = 0;
+            for (int i = 0; i < m; i++) {
+                WikiItem w = table[i];
+                while (w != null) {
+                    uniqueWords++;
+                    Document d = w.doc;
+                    while (d != null) {
+                        titlesOverall++;
+                        d = d.next;
+                    }
+                    w = w.next;
+                }
+            }
+            System.out.println("Unique words: " + uniqueWords);
+            System.out.println("Titles overall: " + titlesOverall);
         }
     }
 
@@ -220,16 +220,26 @@ class Index4 {
 
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
+        long preprocessStartNanos = System.nanoTime();
         HashTable hashTable = new HashTable();
         Index4 i = new Index4(args[0], hashTable);
+        long preprocessEndNanos = System.nanoTime();
+        long preprocessMs = (preprocessEndNanos - preprocessStartNanos) / 1_000_000L;
+        System.out.println("Preprocessing time: " + preprocessMs + " ms");
+        //hashTable.printIndexStatistics();
         Scanner console = new Scanner(System.in);
+        //System.out.println("Words: " + hashTable.numKeys);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
             String searchstr = console.nextLine();
+            long searchStartNanos = System.nanoTime();
             if (searchstr.equals("exit")) {
                 break;
             }
             search(searchstr, hashTable);
+            long searchEndNanos = System.nanoTime();
+            long searchMs = (searchEndNanos - searchStartNanos) / 1_000_000L;
+            System.out.println("Search time: " + searchMs + " ms");
         }
         console.close();
     }
@@ -240,5 +250,5 @@ class Index4 {
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
-    // For instance, java -Xmx128m Index4.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
+    // For instance, java -Xmx128m Basic-Part/Index4.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
 }
