@@ -94,7 +94,7 @@ class Index2 {
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
-    // For instance, java -Xmx128m Index2.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 128MB.
+    // For instance, java -Xmx12g Basic-Part/Index2.java DataFiles/WestburyLab.wikicorp.201004_800MB.txt sets the maximum space to 12GB.
 }
 
 
