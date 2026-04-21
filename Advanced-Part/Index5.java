@@ -3,13 +3,12 @@ import java.io.FileNotFoundException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
-import java.util.TreeSet;
 
 class Index5 {
     private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---";
@@ -17,16 +16,16 @@ class Index5 {
     private final Map<Integer, String> titleByDocId;
     private final CompactTrie trie;
 
-    // collect the titles from the file and store them in a map: document number -> title
+    // collect the titles from the file and store them in a map: doc id -> title
     private static Map<Integer, String> collectTitles(String filename) {
         Map<Integer, String> map = new HashMap<>();
         try (Scanner input = new Scanner(new File(filename), StandardCharsets.UTF_8.name())) {
             if (!input.hasNext()) {
                 return map;
             }
-            int docNum = 1;
+            int docId = 1;
             String title = input.next();
-            map.put(docNum, title); // store the first title in the map
+            map.put(docId, title); // store the first title in the map
             while (input.hasNext()) {
                 String word = input.next();
                 if (word.equals(END_OF_DOCUMENT)) {
@@ -41,8 +40,8 @@ class Index5 {
                     if (nextTitle == null) {
                         break;
                     }
-                    docNum++;
-                    map.put(docNum, nextTitle); // store the title in the map
+                    docId++;
+                    map.put(docId, nextTitle); // store the title in the map
                 }
             }
         } catch (FileNotFoundException e) {
@@ -56,13 +55,13 @@ class Index5 {
             if (!input.hasNext()) {
                 return;
             }
-            int docNum = 1;
+            int docId = 1;
             input.next();  // skip the title
             if (!input.hasNext()) {
                 return;
             }
             String word = input.next();
-            trie.insert(word, docNum); // insert the first word
+            trie.insert(word, docId); // insert the first word
             while (input.hasNext()) {
                 if (word.equals(END_OF_DOCUMENT)) {
                     while (input.hasNextLine()) {
@@ -71,13 +70,13 @@ class Index5 {
                             break;
                         }
                     }
-                    docNum++; // increment the document number
+                    docId++; // increment the doc id
                 }
                 if (!input.hasNext()) {
                     break;
                 }
                 word = input.next();
-                trie.insert(word, docNum); // insert the next word and the document number in the list of the leaf node
+                trie.insert(word, docId); // insert the next word and the doc id in the list of the leaf node
             }
         } catch (FileNotFoundException e) {
             System.out.println("Error reading file " + filename);
@@ -85,7 +84,7 @@ class Index5 {
     }
 
     public Index5(String filename) {
-        this.titleByDocId = collectTitles(filename); // make a map: document number -> title
+        this.titleByDocId = collectTitles(filename); // make a map: doc id -> title
         this.trie = new CompactTrie(); // create a new compact trie
         buildTrie(filename, trie); // build the trie
     }
@@ -93,25 +92,28 @@ class Index5 {
     public void search(String query) {
         if (query.endsWith("*")) { // if the query ends with a *, then it is a prefix search
             String prefix = query.substring(0, query.length() - 1);
-            Set<Integer> ids = trie.collectByPrefix(prefix); // collect the document numbers that match the prefix
-            printTitles(ids);
+            Map<Integer, Integer> ranks = trie.collectByPrefix(prefix); // docId -> total occurrences under prefix
+            printTitles(ranks);
         } else {
-            Set<Integer> ids = trie.collectExact(query); // collect the document numbers that match the exact query
-            printTitles(ids);
+            Map<Integer, Integer> ranks = trie.collectExact(query); // docId -> occurrences of the exact word
+            printTitles(ranks);
         }
     }
 
-    private void printTitles(Set<Integer> docIds) {
-        if (docIds.isEmpty()) {
-            System.out.println("No matching documents");
+    // Print titles in descending order of rank; ties broken by document id.
+    private void printTitles(Map<Integer, Integer> docIdToCount) {
+        if (docIdToCount.isEmpty()) {
+            //System.out.println("No matching documents");
             return;
         }
-        List<Integer> sorted = new ArrayList<>(docIds); // convert the set to a list
-        Collections.sort(sorted); // sort the list of document numbers
-        for (int id : sorted) {
-            String t = titleByDocId.get(id); // get the title with key id from the map
+        List<Map.Entry<Integer, Integer>> entries = new ArrayList<>(docIdToCount.entrySet());
+        entries.sort(
+                Comparator.<Map.Entry<Integer, Integer>>comparingInt(Map.Entry::getValue).reversed()
+                        .thenComparingInt(Map.Entry::getKey));
+        for (Map.Entry<Integer, Integer> e : entries) {
+            String t = titleByDocId.get(e.getKey());
             if (t != null) {
-                System.out.println(t);
+                //System.out.println(t);
             }
         }
     }
@@ -152,8 +154,8 @@ class Index5 {
             Edge edge = node.edges.get(first); // get the edge with the first character of s from the map
             if (edge == null) {               // case 1: the word is not in the trie and there is no edge with the first character of s
                 TrieNode leaf = new TrieNode(); // create a new leaf node
-                leaf.docIds = new TreeSet<>(); // create a new tree set to store the document numbers
-                leaf.docIds.add(docId);        // add doc nr., here is constant time but  O(log occ) after that
+                leaf.docCounts = new HashMap<>();
+                leaf.docCounts.put(docId, 1); // add doc id -> rank, here is constant time but  O(log occ) after that
                 node.edges.put(first, new Edge(s, leaf)); // put the character c -> edge in the map (creating new edge)
                 return;
             }
@@ -172,8 +174,8 @@ class Index5 {
                 String rest = label.substring(k);       // get the rest of the label
                 mid.edges.put(rest.charAt(0), new Edge(rest, edge.child)); // put the rest of the label -> edge in the map. Give it child node of previous edge.
                 TrieNode term = new TrieNode();         // create a new terminal node for the word s
-                term.docIds = new TreeSet<>();          
-                term.docIds.add(docId);                 // add the document number to the list
+                term.docCounts = new HashMap<>();
+                term.docCounts.put(docId, 1);
                 mid.edges.put('$', new Edge("$", term)); // put the $ -> edge in the map as a child of the middle node
                 edge.child = mid;                       // set the middle node as the child of the previous edge
                 edge.label = s;                         // set the label of the previous edge to be the word s
@@ -185,33 +187,33 @@ class Index5 {
             String sRest = s.substring(k);
             mid.edges.put(labelRest.charAt(0), new Edge(labelRest, edge.child)); // edge for the rest of the label extending from the middle node
             TrieNode newLeaf = new TrieNode(); // create a new leaf node for the word s
-            newLeaf.docIds = new TreeSet<>();
-            newLeaf.docIds.add(docId);         // add the document number to the list
+            newLeaf.docCounts = new HashMap<>();
+            newLeaf.docCounts.put(docId, 1);
             mid.edges.put(sRest.charAt(0), new Edge(sRest, newLeaf)); // edge for the rest of the word extending from the middle node
             edge.child = mid;                                       // set the middle node as the child of the previous edge
             edge.label = label.substring(0, k);                     // set the label of the previous edge to be the common prefix
         }
 
-        // Merge the document number into the list of document numbers in the leaf node.
+        // Increment occurrence count for docId at leaf node n
         private static void mergeDocs(TrieNode n, int docId) {
-            if (n.docIds == null) { // if the list of document numbers is not found, then create a new tree set
-                n.docIds = new TreeSet<>();
+            if (n.docCounts == null) {         // if the hash map of document ids is not found, then create a new hash map
+                n.docCounts = new HashMap<>();
             }
-            n.docIds.add(docId); // add the document number to the list
+            n.docCounts.merge(docId, 1, Integer::sum); // increment the rank of docId by 1
         }
 
-        // Collect the document numbers that match the exact query. This is the regular search.
-        Set<Integer> collectExact(String word) {
+        // Collect docId -> doc rank for the exact word. This is the regular search.
+        Map<Integer, Integer> collectExact(String word) {
             TrieNode n = navigateExact(root, word + "$"); // navigate to the leaf node of the search string
-            if (n == null || n.docIds == null) {
-                return Collections.emptySet();
+            if (n == null || n.docCounts == null || n.docCounts.isEmpty()) {
+                return Collections.emptyMap();
             }
-            return new HashSet<>(n.docIds); // return the set of document numbers
+            return new HashMap<>(n.docCounts); // return the hash map of document ids and their ranks
         }
 
         private TrieNode navigateExact(TrieNode node, String s) {
-            if (s.isEmpty()) { // return list of document numbers if leaf is reached
-                return node.docIds != null ? node : null;
+            if (s.isEmpty()) { // return leaf node if reached
+                return node.docCounts != null && !node.docCounts.isEmpty() ? node : null;
             }
             char first = s.charAt(0);
             Edge e = node.edges.get(first); // get the edge with the first character of s from the map
@@ -228,15 +230,15 @@ class Index5 {
             return navigateExact(e.child, s.substring(L.length())); // navigate to the next node
         }
 
-        // Collect the document numbers that match the prefix. This is the prefix search.
-        Set<Integer> collectByPrefix(String prefix) {
+        // Collect docId -> summed occurrences over all words in the subtree matching the prefix. This is the prefix search.
+        Map<Integer, Integer> collectByPrefix(String prefix) {
             TrieNode n = navigateToPrefixEnd(root, prefix); // navigate to the node at the end of the prefix
             if (n == null) {
-                return Collections.emptySet();
+                return Collections.emptyMap();
             }
-            Set<Integer> out = new HashSet<>(); // create a new set to store the document numbers
-            collectSubtreeDocs(n, out); // collect the document numbers from the subtree rooted at n
-            return out; // return the set of document numbers
+            Map<Integer, Integer> out = new HashMap<>(); // create a new hash map to store the document ids and their ranks
+            collectSubtreeDocs(n, out); // collect the document ids and their ranks from the subtree rooted at n
+            return out; // return the hash map of document ids and their ranks
         }
 
         private TrieNode navigateToPrefixEnd(TrieNode node, String prefix) {
@@ -270,13 +272,15 @@ class Index5 {
             return cur;  // case when the prefix searched for ends exactly in a node -> return that node
         }
 
-        // Collect all doc numbers from the subtree rooted at n.
-        private void collectSubtreeDocs(TrieNode n, Set<Integer> out) {
-            if (n.docIds != null) {
-                out.addAll(n.docIds); // add the document numbers to the set
+        // Sum ranks of documents in the subtree rooted at n.
+        private void collectSubtreeDocs(TrieNode n, Map<Integer, Integer> out) {
+            if (n.docCounts != null) {
+                for (Map.Entry<Integer, Integer> e : n.docCounts.entrySet()) {
+                    out.merge(e.getKey(), e.getValue(), Integer::sum);
+                }
             }
-            for (Edge e : n.edges.values()) { // iterate over the edges of the node
-                collectSubtreeDocs(e.child, out); // collect the document numbers from the child node
+            for (Edge e : n.edges.values()) {     // iterate over the edges of the node
+                collectSubtreeDocs(e.child, out); // collect the document ids and their ranks from the child node
             }
         }
 
@@ -293,7 +297,8 @@ class Index5 {
 
     private static final class TrieNode {
         final Map<Character, Edge> edges = new HashMap<>();
-        TreeSet<Integer> docIds;
+        // doc id -> doc rank (only on leaf nodes)
+        Map<Integer, Integer> docCounts;
     }
 
     // Edge class represents an edge in the trie. Edge has a label and leads to a child node.
