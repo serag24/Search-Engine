@@ -5,6 +5,7 @@ import java.util.concurrent.ThreadLocalRandom;
  
 class Index4 {
     private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---";
+    private static int count;
 
     private static class WikiItem {
         String str;
@@ -99,6 +100,7 @@ class Index4 {
                 return;
             }
             item.doc = new Document(title, head);
+            //Index4.count+=title.length()+(8-title.length()%8);
         }
 
 
@@ -123,6 +125,7 @@ class Index4 {
             item.next = table[idx];
             table[idx] = item;
             numKeys++;
+            //Index4.count+=word.length()+(8-word.length()%8);
         }
 
         public Document getTitles(String word) {
@@ -227,6 +230,7 @@ class Index4 {
         long preprocessMs = (preprocessEndNanos - preprocessStartNanos) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
         //hashTable.printIndexStatistics();
+        //System.out.println("Number of bytes for all actual strings: " + Index4.count);
         Scanner console = new Scanner(System.in);
         //System.out.println("Words: " + hashTable.numKeys);
         for (;;) {

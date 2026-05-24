@@ -20,7 +20,7 @@ class Index1 {
     public Index1(String filename) {
         String word;
         WikiItem current, tmp;
-        //count = 1;
+        //count = 0;
         try {
             Scanner input = new Scanner(new File(filename), "UTF-8");
             word = input.next();
@@ -32,7 +32,7 @@ class Index1 {
                 tmp = new WikiItem(word, null);
                 current.next = tmp;
                 current = tmp;
-                //count++;
+                //count+=word.length()+(8-word.length()%8);
             }
             input.close();
         } catch (FileNotFoundException e) {
@@ -63,7 +63,7 @@ class Index1 {
         long preprocessEndNanos = System.nanoTime();
         long preprocessMs = (preprocessEndNanos - preprocessStartNanos) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
-        //System.out.println("Number of words: " + i.count);
+        //System.out.println("Number of bytes for all actual strings: " + i.count);
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");

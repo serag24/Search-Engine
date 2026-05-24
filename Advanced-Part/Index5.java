@@ -16,6 +16,9 @@ class Index5 {
     private final Map<Integer, String> titleByDocId;
     private final CompactTrie trie;
 
+    private List<Integer> predecessorArray;
+    private List<List<Integer>> sparseTable;
+
     // collect the titles from the file and store them in a map: doc id -> title
     private static Map<Integer, String> collectTitles(String filename) {
         Map<Integer, String> map = new HashMap<>();
@@ -87,16 +90,19 @@ class Index5 {
         this.titleByDocId = collectTitles(filename); // make a map: doc id -> title
         this.trie = new CompactTrie(); // create a new compact trie
         buildTrie(filename, trie); // build the trie
+        trie.dfs(trie.root); // create docId/rank arrays + lv/rv assignments for each node
+        createPredecessorArray(trie.docIds);
+        createSparseTable();
     }
 
     public void search(String query) {
         if (query.endsWith("*")) { // if the query ends with a *, then it is a prefix search
             String prefix = query.substring(0, query.length() - 1);
-            Map<Integer, Integer> ranks = trie.collectByPrefix(prefix); // docId -> total occurrences under prefix
-            printTitles(ranks);
+            Map<Integer, Integer> results = trie.collectByPrefix(prefix); // docId -> total occurrences under prefix
+            printTitles(results);
         } else {
-            Map<Integer, Integer> ranks = trie.collectExact(query); // docId -> occurrences of the exact word
-            printTitles(ranks);
+            Map<Integer, Integer> results = trie.collectExact(query); // docId -> occurrences of the exact word
+            printTitles(results);
         }
     }
 
@@ -108,14 +114,53 @@ class Index5 {
         }
         List<Map.Entry<Integer, Integer>> entries = new ArrayList<>(docIdToCount.entrySet());
         entries.sort(
-                Comparator.<Map.Entry<Integer, Integer>>comparingInt(Map.Entry::getValue).reversed()
-                        .thenComparingInt(Map.Entry::getKey));
+                Comparator.<Map.Entry<Integer, Integer>>comparingInt(Map.Entry::getValue).reversed());
         for (Map.Entry<Integer, Integer> e : entries) {
             String t = titleByDocId.get(e.getKey());
             if (t != null) {
                 //System.out.println(t);
             }
         }
+    }
+
+    private void createPredecessorArray(List<Integer> docIds) {
+        predecessorArray = new ArrayList<>();
+        HashMap<Integer, Integer> lastSeen = new HashMap<>();
+        for (int i = 0; i < docIds.size(); i++) {
+            int doc = docIds.get(i);
+            predecessorArray.add(lastSeen.getOrDefault(doc, -1));
+            lastSeen.put(doc, i);
+        }
+    }
+
+    private void createSparseTable() {
+        int n = predecessorArray.size();
+        sparseTable = new ArrayList<>();
+        int k = (int)Math.floor(Math.log(n) / Math.log(2)) + 1;
+        List<Integer> row0 = new ArrayList<>(n);
+        for (int j = 0; j < n; j++) {
+            row0.add(j);  //first row of indices
+        }
+        sparseTable.add(row0);
+        for (int i = 1; i < k; i++) {
+            List<Integer> row = new ArrayList<>();
+            for (int j = 0; j <= n - (1 << i); j++) { // 1<<i is 2^i
+                int a = sparseTable.get(i - 1).get(j);
+                int b = sparseTable.get(i - 1).get(j + (1 << (i - 1)));
+                row.add(predecessorArray.get(a) <= predecessorArray.get(b) ? a : b);
+            }
+            sparseTable.add(row);
+        }
+    }
+
+    private int RMQ(int l, int r) {
+        int len = r - l + 1;
+        int j = (int)Math.floor(Math.log(len) / Math.log(2)) + 1; // finding correct row in sparse table
+        int leftIdx = sparseTable.get(j).get(l);
+        int rightIdx = sparseTable.get(j).get(r - (1 << j) + 1); // 1<<j is 2^j
+        return predecessorArray.get(leftIdx) <= predecessorArray.get(rightIdx) // choosing index whose value in L is smaller
+                ? leftIdx
+                : rightIdx;
     }
 
     public static void main(String[] args) {
@@ -143,6 +188,23 @@ class Index5 {
 
     private static final class CompactTrie {
         private final TrieNode root = new TrieNode();
+        private final List<Integer> docIds = new ArrayList<>();
+        private final List<Integer> ranks = new ArrayList<>();
+
+        // One DFS: leaves left-to-right into docIds/ranks; each node gets subtree range [lv, rv].
+        private void dfs(TrieNode n) {
+            n.lv = docIds.size();
+            if (n.docCounts != null) {
+                for (Map.Entry<Integer, Integer> e : n.docCounts.entrySet()) {
+                    docIds.add(e.getKey());
+                    ranks.add(e.getValue());
+                }
+            }
+            for (Edge e : n.edges.values()) {
+                dfs(e.child);
+            }
+            n.rv = docIds.isEmpty() ? -1 : docIds.size() - 1;
+        }
 
         // Add "$" to the end of the word for a prefix-free trie. Start insertion from the root node.
         void insert(String word, int docId) {
@@ -255,7 +317,7 @@ class Index5 {
                 }
                 String L = e.label;
                 int need = prefix.length() - i; // var to keep track of the remaining length of the prefix we search for
-                if (L.length() <= need) {             // case 1: the label is shorter than the prefix we search for
+                if (L.length() <= need) {             // case 1: the label is shorter than the prefix we search for (or same length)
                     if (!prefix.startsWith(L, i)) {   //case 1.1: the label is not a prefix of the prefix we search for
                         return null;
                     }
@@ -299,6 +361,9 @@ class Index5 {
         final Map<Character, Edge> edges = new HashMap<>();
         // doc id -> doc rank (only on leaf nodes)
         Map<Integer, Integer> docCounts;
+        
+        int lv; // leftmost index of the docId in the subtree
+        int rv; // rightmost index of the docId in the subtree
     }
 
     // Edge class represents an edge in the trie. Edge has a label and leads to a child node.
