@@ -25,19 +25,18 @@ class Index5v1 {
             while (input.hasNext()) {
                 String word = input.next();
                 if (word.equals(END_OF_DOCUMENT)) {
-                    String nextTitle = null;
                     while (input.hasNextLine()) {
                         String line = input.nextLine();
                         if (!line.isEmpty()) {
-                            nextTitle = line;
+                            title = line;
                             break;
                         }
                     }
-                    if (nextTitle == null) { //end of file
+                    if (title == null) { //end of file
                         break;
                     }
                     docId++;
-                    titleByDocId.put(docId, nextTitle); // store the title in the map
+                    titleByDocId.put(docId, title); // store the title in the map
                 }
             }
         } catch (FileNotFoundException e) {

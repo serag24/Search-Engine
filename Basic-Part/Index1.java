@@ -58,28 +58,28 @@ class Index1 {
     // Otherwise, it will search in the file for the string given in terminal and print whether it exists or not.
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
-        long preprocessStartNanos = System.nanoTime();
+        long preprocessStart = System.nanoTime();
         Index1 i = new Index1(args[0]);
-        long preprocessEndNanos = System.nanoTime();
-        long preprocessMs = (preprocessEndNanos - preprocessStartNanos) / 1_000_000L;
+        long preprocessEnd = System.nanoTime();
+        long preprocessMs = (preprocessEnd - preprocessStart) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
         //System.out.println("Number of bytes for all actual strings: " + i.count);
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
             String searchstr = console.nextLine();
-            long searchStartNanos = System.nanoTime();
+            long searchStart = System.nanoTime();
             if (searchstr.equals("exit")) {
                 break;
             }
             if (i.search(searchstr)) {
-                long searchEndNanos = System.nanoTime();
-                long searchMs = (searchEndNanos - searchStartNanos) / 1_000_000L;
+                long searchEnd = System.nanoTime();
+                long searchMs = (searchEnd - searchStart) / 1_000_000L;
                 System.out.println("Search time: " + searchMs + " ms");
                 System.out.println(searchstr + " exists");
             } else {
-                long searchEndNanos = System.nanoTime();
-                long searchMs = (searchEndNanos - searchStartNanos) / 1_000_000L;
+                long searchEnd = System.nanoTime();
+                long searchMs = (searchEnd - searchStart) / 1_000_000L;
                 System.out.println("Search time: " + searchMs + " ms");
                 System.out.println(searchstr + " does not exist");
             }

@@ -36,11 +36,10 @@ class Index4 {
 
         private WikiItem[] table;
         
-        private int numKeys;   // keeps track of how many distinct words are in the hash table
+        private int v;   // keeps track of how many distinct words are in the hash table
         private int hashA;
         private int hashB;
 
-        // Instance constructor for creating the new hash table and its hash parameters
         public HashTable() {
             table = new WikiItem[INITIAL_CAPACITY];
             chooseHashParameters();
@@ -49,7 +48,7 @@ class Index4 {
         private void chooseHashParameters() {
             int m = table.length;
             ThreadLocalRandom r = ThreadLocalRandom.current();
-            // Universal-style step: index = floorMod(a * k + b, m) with a in [1, m-1], b in [0, m-1]
+            // index = (a * k + b)% m with a in [1, m-1], b in [0, m-1]
             hashA = 1 + r.nextInt(m - 1);
             hashB = r.nextInt(m);
         }
@@ -58,11 +57,9 @@ class Index4 {
         // How hashCode() works:
         // s[0]*31^(n-1) + s[1]*31^(n-2) + ... + s[n-1]
 
-        // Key from String.hashCode() (JDK: 31-based polynomial, cached on the String); then (a,b) mod table size.
         private int indexFor(String word) {
             int m = table.length;
             int kMod = Math.floorMod(word.hashCode(), m);
-            // Widen to long so hashA * kMod does not overflow int for large m.
             return (int) Math.floorMod((long) hashA * kMod + hashB, m);
         }
 
@@ -81,17 +78,17 @@ class Index4 {
                 while (cur != null) {
                     WikiItem next = cur.next;
                     cur.next = null;
-                    insertNodeAtBucket(cur);
+                    insertItemAtBucket(cur);
                     cur = next;
                 }
             }
         }
 
-        // Insert an existing node (used only during rehash). Does not change numKeys.
-        private void insertNodeAtBucket(WikiItem node) {
-            int idx = indexFor(node.str);
-            node.next = table[idx];
-            table[idx] = node;
+        // insert item from old table into new table
+        private void insertItemAtBucket(WikiItem item) {
+            int i = indexFor(item.str);
+            item.next = table[i];
+            table[i] = item;
         }
 
         private static void addTitleIfMissing(WikiItem item, String title) {
@@ -102,35 +99,31 @@ class Index4 {
             item.doc = new Document(title, head);
             //Index4.count+=title.length()+(8-title.length()%8);
         }
-
-
-        // If word exists in table: if list head already has this title, skip; else prepend title.
-        // Rehash when numKeys == table.length before adding a new distinct word.
          
         public void addWord(String word, String title) {
-            int idx = indexFor(word);
-            WikiItem cur = table[idx];
+            int i = indexFor(word);
+            WikiItem cur = table[i];
             while (cur != null) {
-                if (cur.str.equals(word)) {
+                if (cur.str.equals(word)) { // word is already in the table
                     addTitleIfMissing(cur, title);
                     return;
                 }
                 cur = cur.next;
             }
-            if (numKeys == table.length) {
+            if (v == table.length) {   // rehash when v == table.length before adding a new distinct word
                 rehash();
-                idx = indexFor(word);
+                i = indexFor(word);
             }
             WikiItem item = new WikiItem(word, new Document(title, null));
-            item.next = table[idx];
-            table[idx] = item;
-            numKeys++;
+            item.next = table[i];
+            table[i] = item;
+            v++;
             //Index4.count+=word.length()+(8-word.length()%8);
         }
 
         public Document getTitles(String word) {
-            int idx = indexFor(word);
-            WikiItem current = table[idx];
+            int i = indexFor(word);
+            WikiItem current = table[i];
 
             while (current != null) {
                 if (current.str.equals(word)) {
@@ -182,35 +175,22 @@ class Index4 {
     public Index4(String filename, HashTable hashTable) {
         try {
             Scanner input = new Scanner(new File(filename), StandardCharsets.UTF_8.name());
-            if (!input.hasNext()) {
-                input.close();
-                return;
-            }
             String title = input.next();
-            if (!input.hasNext()) {
-                input.close();
-                return;
-            }
             String word = input.next();
             hashTable.addWord(word, title);
 
             while (input.hasNext()) {
                 if (word.equals(END_OF_DOCUMENT)) {
-                    String nextTitle = null;
                     while (input.hasNextLine()) {
                         String line = input.nextLine();
-                        if (!line.trim().isEmpty()) {
-                            nextTitle = line.trim();  // trim() removes leading and trailing whitespace
+                        if (!line.isEmpty()) {
+                            title = line;
                             break;
                         }
                     }
-                    if (nextTitle == null) {
+                    if (title == null) { // end of file
                         break;
                     }
-                    title = nextTitle;
-                }
-                if (!input.hasNext()) {
-                    break;
                 }
                 word = input.next();
                 hashTable.addWord(word, title);
@@ -223,26 +203,26 @@ class Index4 {
 
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
-        long preprocessStartNanos = System.nanoTime();
+        long preprocessStart = System.nanoTime();
         HashTable hashTable = new HashTable();
         Index4 i = new Index4(args[0], hashTable);
-        long preprocessEndNanos = System.nanoTime();
-        long preprocessMs = (preprocessEndNanos - preprocessStartNanos) / 1_000_000L;
+        long preprocessEnd = System.nanoTime();
+        long preprocessMs = (preprocessEnd - preprocessStart) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
         //hashTable.printIndexStatistics();
         //System.out.println("Number of bytes for all actual strings: " + Index4.count);
         Scanner console = new Scanner(System.in);
-        //System.out.println("Words: " + hashTable.numKeys);
+        //System.out.println("Words: " + hashTable.v);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
             String searchstr = console.nextLine();
-            long searchStartNanos = System.nanoTime();
+            long searchStart = System.nanoTime();
             if (searchstr.equals("exit")) {
                 break;
             }
             search(searchstr, hashTable);
-            long searchEndNanos = System.nanoTime();
-            long searchMs = (searchEndNanos - searchStartNanos) / 1_000_000L;
+            long searchEnd = System.nanoTime();
+            long searchMs = (searchEnd - searchStart) / 1_000_000L;
             System.out.println("Search time: " + searchMs + " ms");
         }
         console.close();

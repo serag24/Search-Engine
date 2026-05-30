@@ -11,7 +11,7 @@ class Index3 {
         Document doc;           // linked list of document titles
         WikiItem next;         // next word
  
-        WikiItem(String s, Document d, WikiItem n) { // constructor
+        WikiItem(String s, Document d, WikiItem n) {
             str = s;
             doc = d;
             next = n;
@@ -22,7 +22,7 @@ class Index3 {
         String title;        // title
         Document next;       // next title
 
-        Document(String t, Document n) { // constructor
+        Document(String t, Document n) {
             title = t;
             next = n;
         }
@@ -31,32 +31,27 @@ class Index3 {
         // Iterates through the file (outer while loop) taking one word at a time and creating a WikiItem object for it.
         // Then it iterates through all words in the file (inner while loop), saving the titles of all documents that contain the current word.
         public Index3(String filename) {
-            String word, title;
             WikiItem current;
             try {
-                Scanner input = new Scanner(new File(filename), "UTF-8"); // Scanner
-                title = input.next();
-                word = input.next();
+                Scanner input = new Scanner(new File(filename), "UTF-8");
+                String title = input.next();
+                String word = input.next();
     
                 start = new WikiItem(word, new Document(title, null), null); // first WikiItem
                 current = start;
                 while (input.hasNext()) {   // Read all words in input
 
                     if(word.equals(END_OF_DOCUMENT)) {
-                        // Title is the next non-empty line (whole line; may contain '.' anywhere)
-                        String nextTitle = null;
                         while (input.hasNextLine()) {
                             String line = input.nextLine();
-                            if (!line.trim().isEmpty()) {
-                                nextTitle = line.trim();
+                            if (!line.isEmpty()) {
+                                title = line;
                                 break;
                             }
                         }
-                        if (nextTitle == null) {
+                        if (title == null) {
                             break;
                         }
-                        title = nextTitle;
-                        //System.out.println(title); // TODO: remove this
                     }
                     
                     word = input.next();
@@ -117,22 +112,22 @@ class Index3 {
     // Otherwise, it will search in the file for the string given in terminal and print whether it exists or not.
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
-        long preprocessStartNanos = System.nanoTime();
+        long preprocessStart = System.nanoTime();
         Index3 i = new Index3(args[0]);
-        long preprocessEndNanos = System.nanoTime();
-        long preprocessMs = (preprocessEndNanos - preprocessStartNanos) / 1_000_000L;
+        long preprocessEnd = System.nanoTime();
+        long preprocessMs = (preprocessEnd - preprocessStart) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
             String searchstr = console.nextLine();
-            long searchStartNanos = System.nanoTime();
+            long searchStart = System.nanoTime();
             if (searchstr.equals("exit")) {
                 break;
             }
             i.search(searchstr);
-            long searchEndNanos = System.nanoTime();
-            long searchMs = (searchEndNanos - searchStartNanos) / 1_000_000L;
+            long searchEnd = System.nanoTime();
+            long searchMs = (searchEnd - searchStart) / 1_000_000L;
             System.out.println("Search time: " + searchMs + " ms");
         }
         console.close();
