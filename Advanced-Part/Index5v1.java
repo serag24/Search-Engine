@@ -9,14 +9,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
 
-class Index5v2 {
+class Index5v1 {
     private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---";
 
     private Map<Integer, String> titleByDocId;
     private CompactTrie trie;
-
-    private List<Integer> predecessorArray;
-    private List<List<Integer>> sparseTable;
 
     // gather the titles from the file and store them in titleByDocId: docId -> title
     private void createTitleByDocIdMap(String filename) {
@@ -75,42 +72,21 @@ class Index5v2 {
         }
     }
 
-    public Index5v2(String filename) {
+    public Index5v1(String filename) {
         createTitleByDocIdMap(filename); // make a map: doc id -> title
         trie = new CompactTrie(); 
         buildTrie(filename, trie); // build the trie
-        trie.dfs(trie.root); // create doc array + lv/rv assignments for each node
-        createPredecessorArray(trie.docArray);
-        createSparseTable();
     }
 
     public void search(String query) {
         if (query.endsWith("*")) { // if the query ends with a *, then it is a prefix search
             String prefix = query.substring(0, query.length() - 1);
-            TrieNode n = trie.nodeAtEndOfPrefix(trie.root, prefix);
-            if (n == null) {
-                System.out.println("No matching documents");
-                return;
-            }
-            printTitlesInSubtree(n.lv, n.rv, n.lv);
+            Map<Integer, Integer> results = trie.collectByPrefix(prefix); // docId -> total occurrences under prefix
+            printTitles(results);
         } else {
             Map<Integer, Integer> results = trie.collectExact(query); // docId -> occurrences of the exact word
             printTitles(results);
         }
-    }
-
-    // color listing algorithm
-    private void printTitlesInSubtree(int i, int j, int lv) {
-        if (i > j) {
-            return;
-        }
-        int p = RMQ(i, j);
-        if (predecessorArray.get(p) >= lv) { //end recursion
-            return;
-        }
-        System.out.println(titleByDocId.get(trie.docArray.get(p)));
-        printTitlesInSubtree(i, p - 1, lv); //recurse in left part
-        printTitlesInSubtree(p + 1, j, lv); //recurse in right part
     }
 
     // print titles in descending order of rank
@@ -128,50 +104,10 @@ class Index5v2 {
         }
     }
 
-    private void createPredecessorArray(List<Integer> docArray) {
-        predecessorArray = new ArrayList<>();
-        HashMap<Integer, Integer> lastSeen = new HashMap<>();
-        for (int i = 0; i < docArray.size(); i++) {
-            int docId = docArray.get(i);
-            predecessorArray.add(lastSeen.getOrDefault(docId, -1));
-            lastSeen.put(docId, i);
-        }
-    }
-
-    private void createSparseTable() {
-        int n = predecessorArray.size();
-        sparseTable = new ArrayList<>();
-        int k = (int) Math.floor(Math.log(n) / Math.log(2)); // floor(log2(n))
-        List<Integer> row0 = new ArrayList<>(n);
-        for (int j = 0; j < n; j++) {
-            row0.add(j);  //first row of indices
-        }
-        sparseTable.add(row0);
-        for (int i = 1; i < k; i++) {
-            List<Integer> row = new ArrayList<>();
-            for (int j = 0; j <= n - (1 << i); j++) { // 1<<i is 2^i
-                int a = sparseTable.get(i - 1).get(j);
-                int b = sparseTable.get(i - 1).get(j + (1 << (i - 1)));
-                row.add(predecessorArray.get(a) <= predecessorArray.get(b) ? a : b); // add index of the smaller value
-            }
-            sparseTable.add(row);
-        }
-    }
-
-    private int RMQ(int l, int r) {
-        int len = r - l + 1;
-        int j = (int) Math.floor(Math.log(len) / Math.log(2)); // floor(log2(len)), finding correct row in sparse table
-        int leftIdx = sparseTable.get(j).get(l);
-        int rightIdx = sparseTable.get(j).get(r - (1 << j) + 1); // 1<<j is 2^j
-        return predecessorArray.get(leftIdx) <= predecessorArray.get(rightIdx) // choosing index whose value in L is smaller
-                ? leftIdx
-                : rightIdx;
-    }
-
     public static void main(String[] args) {
         System.out.println("Preprocessing " + args[0]);
         long preprocessStart = System.nanoTime();
-        Index5v2 index = new Index5v2(args[0]);
+        Index5v1 index = new Index5v1(args[0]);
         long preprocessEnd = System.nanoTime();
         long preprocessMs = (preprocessEnd - preprocessStart) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
@@ -193,21 +129,6 @@ class Index5v2 {
 
     private static final class CompactTrie {
         private final TrieNode root = new TrieNode();
-        private final List<Integer> docArray = new ArrayList<>();
-
-        // DFS algorithm
-        private void dfs(TrieNode n) {
-            n.lv = docArray.size();
-            if (n.docCounts != null) {
-                for (Map.Entry<Integer, Integer> e : n.docCounts.entrySet()) {
-                    docArray.add(e.getKey()); //adding docIds to the docArray
-                }
-            }
-            for (Edge e : n.edges.values()) {
-                dfs(e.child);
-            }
-            n.rv = docArray.size() - 1;
-        }
 
         // Adding "$" to the end of the word for a prefix-free trie
         private void insert(String word, int docId) {
@@ -301,6 +222,17 @@ class Index5v2 {
             return navigateExact(e.child, s.substring(l.length())); // navigate to the next node
         }
 
+         //  prefix search. Collect docId -> summed ranks over all words in the subtree matching the prefix
+         Map<Integer, Integer> collectByPrefix(String prefix) {
+            TrieNode n = nodeAtEndOfPrefix(root, prefix); // navigate to the node at the end of the prefix
+            if (n == null) {
+                return Collections.emptyMap();
+            }
+            Map<Integer, Integer> out = new HashMap<>();
+            collectSubtreeDocs(n, out); // collect the document ids and their ranks from the subtree rooted at n in out
+            return out;
+        }
+
         // navigate to the node at the end of the prefix
         private TrieNode nodeAtEndOfPrefix(TrieNode node, String prefix) {
             int i = 0;
@@ -329,14 +261,23 @@ class Index5v2 {
             }
             return cur;  // case when the prefix searched for ends exactly in a node -> return that node
         }
+
+        // sum ranks of documents in the subtree rooted at n
+        private void collectSubtreeDocs(TrieNode n, Map<Integer, Integer> out) {
+            if (n.docCounts != null) {
+                for (Map.Entry<Integer, Integer> e : n.docCounts.entrySet()) {
+                    out.merge(e.getKey(), e.getValue(), Integer::sum);
+                }
+            }
+            for (Edge e : n.edges.values()) {     // iterate over the edges of the node
+                collectSubtreeDocs(e.child, out); // visit child node
+            }
+        }
     }
 
     private static final class TrieNode {
         Map<Character, Edge> edges = new HashMap<>(); // character -> Edge
         Map<Integer, Integer> docCounts; // docId -> rank , is null for non-leaf nodes
-        
-        int lv; // index of the leftmost docId in the subtree
-        int rv; // index of the rightmost docId in the subtree
     }
 
     private static final class Edge {
@@ -353,10 +294,10 @@ class Index5v2 {
 
 //  For 100KB: driven, dropped, drugs.
 
-   // First compile using $ javac Advanced-Part/Index5v2.java
+   // First compile using $ javac Advanced-Part/Index5v1.java
 
-    // Run using $ java Advanced-Part/Index5v2.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
+    // Run using $ java Advanced-Part/Index5v1.java DataFiles/WestburyLab.wikicorp.201004_100KB.txt
 
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
-    // For instance, java -Xmx12g Advanced-Part/Index5v2.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 12GB.
+    // For instance, java -Xmx12g Advanced-Part/Index5v1.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 12GB.
