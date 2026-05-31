@@ -18,6 +18,8 @@ class Index5v2 {
     private List<Integer> predecessorArray;
     private List<List<Integer>> sparseTable;
 
+    private static int nodeCounter;
+
     // gather the titles from the file and store them in titleByDocId: docId -> title
     private void createTitleByDocIdMap(String filename) {
         titleByDocId = new HashMap<>();
@@ -78,6 +80,7 @@ class Index5v2 {
         createTitleByDocIdMap(filename); // make a map: doc id -> title
         trie = new CompactTrie(); 
         buildTrie(filename, trie); // build the trie
+        //nodeCounter = 0;
         trie.dfs(trie.root); // create doc array + lv/rv assignments for each node
         createPredecessorArray(trie.docArray);
         createSparseTable();
@@ -157,6 +160,15 @@ class Index5v2 {
         }
     }
 
+    // printing nr of elements in sparse table
+    private void printSizeOfSparseTable() {
+        int size = 0;
+        for (List<Integer> row : sparseTable) {
+            size += row.size();
+        }
+        System.out.println("Size of sparse table: " + size);
+    }
+
     private int RMQ(int l, int r) {
         int len = r - l + 1;
         int j = (int) Math.floor(Math.log(len) / Math.log(2)); // floor(log2(len)), finding correct row in sparse table
@@ -174,6 +186,11 @@ class Index5v2 {
         long preprocessEnd = System.nanoTime();
         long preprocessMs = (preprocessEnd - preprocessStart) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
+
+        // System.out.println("Size of title by doc id map: " + (index.titleByDocId.size()-1));
+        // System.out.println("Number of nodes in trie: " + nodeCounter);
+        // index.printSizeOfSparseTable();
+
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
@@ -197,6 +214,7 @@ class Index5v2 {
         // DFS algorithm
         private void dfs(TrieNode n) {
             n.lv = docArray.size();
+            //nodeCounter++;
             if (n.docCounts != null) {
                 for (Map.Entry<Integer, Integer> e : n.docCounts.entrySet()) {
                     docArray.add(e.getKey()); //adding docIds to the docArray

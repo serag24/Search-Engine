@@ -15,6 +15,8 @@ class Index5v1 {
     private Map<Integer, String> titleByDocId;
     private CompactTrie trie;
 
+    private static int nodeCounter;
+
     // gather the titles from the file and store them in titleByDocId: docId -> title
     private void createTitleByDocIdMap(String filename) {
         titleByDocId = new HashMap<>();
@@ -75,6 +77,8 @@ class Index5v1 {
         createTitleByDocIdMap(filename); // make a map: doc id -> title
         trie = new CompactTrie(); 
         buildTrie(filename, trie); // build the trie
+        //nodeCounter = 0;
+        //trie.dfs(trie.root);
     }
 
     public void search(String query) {
@@ -110,6 +114,10 @@ class Index5v1 {
         long preprocessEnd = System.nanoTime();
         long preprocessMs = (preprocessEnd - preprocessStart) / 1_000_000L;
         System.out.println("Preprocessing time: " + preprocessMs + " ms");
+
+        // System.out.println("Size of title by doc id map: " + (index.titleByDocId.size()-1));
+        // System.out.println("Number of nodes in trie: " + nodeCounter);
+
         Scanner console = new Scanner(System.in);
         for (;;) {
             System.out.println("Input search string or type exit to stop");
@@ -128,6 +136,13 @@ class Index5v1 {
 
     private static final class CompactTrie {
         private final TrieNode root = new TrieNode();
+
+        // private void dfs(TrieNode n) {
+        //     nodeCounter++;
+        //     for (Edge e : n.edges.values()) {
+        //         dfs(e.child);
+        //     }
+        // }
 
         // Adding "$" to the end of the word for a prefix-free trie
         private void insert(String word, int docId) {
