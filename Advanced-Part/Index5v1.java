@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+//import org.openjdk.jol.info.GraphLayout;
 
 class Index5v1 {
     private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---";
@@ -15,7 +16,9 @@ class Index5v1 {
     private Map<Integer, String> titleByDocId;
     private CompactTrie trie;
 
-    private static int nodeCounter;
+    // private static int nodeCounter;
+    // private static int occ_count;
+    // private static int tt_count;
 
     // gather the titles from the file and store them in titleByDocId: docId -> title
     private void createTitleByDocIdMap(String filename) {
@@ -82,29 +85,37 @@ class Index5v1 {
     }
 
     public void search(String query) {
+        // occ_count = 0;
+        // tt_count = 0;
         if (query.endsWith("*")) { // if the query ends with a *, then it is a prefix search
             String prefix = query.substring(0, query.length() - 1);
             Map<Integer, Integer> results = trie.collectByPrefix(prefix); // docId -> total occurrences under prefix
+            // System.out.println("occ': " + occ_count);
+            // System.out.println("t'': " + results.size());
+            // System.out.println("tt': " + tt_count);
             printTitles(results);
         } else {
             Map<Integer, Integer> results = trie.collectExact(query); // docId -> occurrences of the exact word
+            //System.out.println("occ: " + results.size());
             printTitles(results);
         }
     }
 
     // print titles in descending order of rank
-    private void printTitles(Map<Integer, Integer> docIdToCount) {
-        if (docIdToCount.isEmpty()) {
+    private void printTitles(Map<Integer, Integer> results) {
+        if (results.isEmpty()) {
             System.out.println("No matching documents");
             return;
         }
-        List<Map.Entry<Integer, Integer>> entries = new ArrayList<>(docIdToCount.entrySet());
+        List<Map.Entry<Integer, Integer>> entries = new ArrayList<>(results.entrySet());
         entries.sort(
                 Comparator.<Map.Entry<Integer, Integer>>comparingInt(Map.Entry::getValue).reversed());
         for (Map.Entry<Integer, Integer> e : entries) {
             String t = titleByDocId.get(e.getKey());
             System.out.println(t);
         }
+        // System.out.println("results map bytes: " + GraphLayout.parseInstance(results).totalSize());
+        // System.out.println("entries list bytes: " + GraphLayout.parseInstance(entries).totalSize());
     }
 
     public static void main(String[] args) {
@@ -117,6 +128,7 @@ class Index5v1 {
 
         // System.out.println("Size of title by doc id map: " + (index.titleByDocId.size()-1));
         // System.out.println("Number of nodes in trie: " + nodeCounter);
+        //printIndexStatistics(index);
 
         Scanner console = new Scanner(System.in);
         for (;;) {
@@ -277,8 +289,10 @@ class Index5v1 {
         }
 
         // sum ranks of documents in the subtree rooted at n
-        private void collectSubtreeDocs(TrieNode n, Map<Integer, Integer> out) {
+        private static void collectSubtreeDocs(TrieNode n, Map<Integer, Integer> out) {
             if (n.docCounts != null) {
+                // occ_count ++;
+                // tt_count += n.docCounts.size();
                 for (Map.Entry<Integer, Integer> e : n.docCounts.entrySet()) {
                     out.merge(e.getKey(), e.getValue(), Integer::sum);
                 }
@@ -303,10 +317,14 @@ class Index5v1 {
             this.child = child;
         }
     }
+
+    private static void printIndexStatistics(Index5v1 index) {
+    // System.out.println(GraphLayout.parseInstance(index.titleByDocId).toFootprint());
+    // System.out.println("map of all titles bytes: " + GraphLayout.parseInstance(index.titleByDocId).totalSize());
+    // System.out.println("trie bytes: " + GraphLayout.parseInstance(index.trie).totalSize());
+    }
+
 }
-
-
-//  For 100KB: driven, dropped, drugs.
 
    // First compile using $ javac Advanced-Part/Index5v1.java
 
@@ -315,3 +333,7 @@ class Index5v1 {
     // To succesfully run some of the large files you may have to increase the 
     // size of the maximum space to be used by the Java interpreter using the -Xmx flag. 
     // For instance, java -Xmx12g Advanced-Part/Index5v1.java DataFiles/WestburyLab.wikicorp.201004_50MB.txt sets the maximum space to 12GB.
+
+    //When using JOL:
+    //Compile using: javac -cp jol-core.jar Advanced-Part/Index5v1.java
+    //Run using: java -cp ".;jol-core.jar;Advanced-Part" Index5v1 DataFiles/WestburyLab.wikicorp.201004_100KB.txt

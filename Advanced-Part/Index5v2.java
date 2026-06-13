@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
+//import org.openjdk.jol.info.GraphLayout;
 
 class Index5v2 {
     private static final String END_OF_DOCUMENT = "---END.OF.DOCUMENT---";
@@ -18,7 +19,7 @@ class Index5v2 {
     private List<Integer> predecessorArray;
     private List<List<Integer>> sparseTable;
 
-    private static int nodeCounter;
+    //private static int nodeCounter;
 
     // gather the titles from the file and store them in titleByDocId: docId -> title
     private void createTitleByDocIdMap(String filename) {
@@ -116,18 +117,20 @@ class Index5v2 {
     }
 
     // print titles in descending order of rank
-    private void printTitles(Map<Integer, Integer> docIdToCount) {
-        if (docIdToCount.isEmpty()) {
+    private void printTitles(Map<Integer, Integer> results) {
+        if (results.isEmpty()) {
             System.out.println("No matching documents");
             return;
         }
-        List<Map.Entry<Integer, Integer>> entries = new ArrayList<>(docIdToCount.entrySet());
+        List<Map.Entry<Integer, Integer>> entries = new ArrayList<>(results.entrySet());
         entries.sort(
                 Comparator.<Map.Entry<Integer, Integer>>comparingInt(Map.Entry::getValue).reversed());
         for (Map.Entry<Integer, Integer> e : entries) {
             String t = titleByDocId.get(e.getKey());
             System.out.println(t);
         }
+        // System.out.println("results map bytes: " + GraphLayout.parseInstance(results).totalSize());
+        // System.out.println("entries list bytes: " + GraphLayout.parseInstance(entries).totalSize());
     }
 
     private void createPredecessorArray(List<Integer> docArray) {
@@ -171,9 +174,9 @@ class Index5v2 {
 
     private int RMQ(int l, int r) {
         int len = r - l + 1;
-        int j = (int) Math.floor(Math.log(len) / Math.log(2)); // floor(log2(len)), finding correct row in sparse table
-        int leftIdx = sparseTable.get(j).get(l);
-        int rightIdx = sparseTable.get(j).get(r - (1 << j) + 1); // 1<<j is 2^j
+        int k = (int) Math.floor(Math.log(len) / Math.log(2)); // floor(log2(len)), finding correct row in sparse table
+        int leftIdx = sparseTable.get(k).get(l);
+        int rightIdx = sparseTable.get(k).get(r - (1 << k) + 1); // 1<<k is 2^k
         return predecessorArray.get(leftIdx) <= predecessorArray.get(rightIdx) // choosing index whose value in L is smaller
                 ? leftIdx
                 : rightIdx;
@@ -190,6 +193,7 @@ class Index5v2 {
         // System.out.println("Size of title by doc id map: " + (index.titleByDocId.size()-1));
         // System.out.println("Number of nodes in trie: " + nodeCounter);
         // index.printSizeOfSparseTable();
+        //printIndexStatistics(index);
 
         Scanner console = new Scanner(System.in);
         for (;;) {
@@ -365,10 +369,18 @@ class Index5v2 {
             this.child = child;
         }
     }
+
+    private static void printIndexStatistics(Index5v2 index) {
+        // System.out.println(GraphLayout.parseInstance(index.trie).toFootprint());
+        // System.out.println("trie bytes: " + GraphLayout.parseInstance(index.trie).totalSize());
+        // System.out.println(GraphLayout.parseInstance(index.trie.docArray).toFootprint());
+        // System.out.println("doc array bytes: " + GraphLayout.parseInstance(index.trie.docArray).totalSize());
+        // System.out.println(GraphLayout.parseInstance(index.predecessorArray).toFootprint());
+        // System.out.println("pred array bytes: " + GraphLayout.parseInstance(index.predecessorArray).totalSize());
+        // System.out.println(GraphLayout.parseInstance(index.sparseTable).toFootprint());
+        // System.out.println("sparse table bytes: " + GraphLayout.parseInstance(index.sparseTable).totalSize());
+    }
 }
-
-
-//  For 100KB: driven, dropped, drugs.
 
    // First compile using $ javac Advanced-Part/Index5v2.java
 
